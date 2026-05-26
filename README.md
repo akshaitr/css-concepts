@@ -1,4 +1,4 @@
-# CSS Concepts
+# Table of Contents
 
 1. [Box Model](#box-model)
 2. [Selectors and Specificity](#selectors-and-specificity)
@@ -17,6 +17,8 @@
 15. [Modern CSS Features](#modern-css-features)
 16. [Performance](#performance)
 17. [BEM and Architecture](#bem-and-architecture)
+
+---
 
 # Box Model
 
@@ -170,6 +172,8 @@ Outline is commonly used for focus indicators. Never remove outline without prov
   outline-offset: 2px;
 }
 ```
+
+---
 
 # Selectors and Specificity
 
@@ -343,6 +347,8 @@ form:has(:invalid) {
 
 `:has()` was the most requested CSS feature for decades. It lets you select elements based on their children or siblings — previously impossible without JavaScript.
 
+---
+
 # Positioning
 
 ### static (default)
@@ -511,6 +517,8 @@ The classic pattern — absolute inside relative:
 }
 ```
 
+---
+
 # Display and Layout
 
 ### Block elements
@@ -616,6 +624,8 @@ Useful when you need a semantic wrapper but don't want it to affect flex/grid la
   /* Modern replacement for the clearfix hack */
 }
 ```
+
+---
 
 # Flexbox
 
@@ -794,6 +804,8 @@ img {
   margin-left: auto; /* pushes this item to the far right */
 }
 ```
+
+---
 
 # CSS Grid
 
@@ -1012,6 +1024,8 @@ Use Flexbox when:                    Use Grid when:
 
 In practice, you use both together — grid for page layout, flex for component internals.
 
+---
+
 # Responsive Design
 
 ### Media queries
@@ -1133,6 +1147,8 @@ h1 {
    not based on device widths */
 ```
 
+---
+
 # Units
 
 ### Absolute units
@@ -1200,6 +1216,8 @@ fr    | Grid track sizing
 ```
 
 **General rule:** Use `rem` for most things. Use `px` for borders and tiny values. Use `%` or `fr` for fluid layouts.
+
+---
 
 # Colors and Custom Properties
 
@@ -1329,6 +1347,8 @@ document.documentElement.style.setProperty('--color-primary', '#ff0000');
 // Reading
 getComputedStyle(document.documentElement).getPropertyValue('--color-primary');
 ```
+
+---
 
 # Transitions and Animations
 
@@ -1547,6 +1567,8 @@ Hints to the browser that a property will change, allowing it to optimize in adv
 }
 ```
 
+---
+
 # Pseudo-classes and Pseudo-elements
 
 ### Pseudo-classes — select elements by STATE
@@ -1739,6 +1761,8 @@ input[type="checkbox"]:checked::after {
 }
 ```
 
+---
+
 # Typography
 
 ### Font loading
@@ -1862,6 +1886,8 @@ body {
   font-feature-settings: "kern" 1;      /* enable kerning */
 }
 ```
+
+---
 
 # Overflow and Scrolling
 
@@ -2000,6 +2026,8 @@ body {
 }
 ```
 
+---
+
 # CSS Functions
 
 ### calc()
@@ -2117,6 +2145,8 @@ Also needs this meta tag:
   backdrop-filter: blur(10px);  /* blurs content BEHIND the element */
 }
 ```
+
+---
 
 # Modern CSS Features
 
@@ -2273,6 +2303,8 @@ document.startViewTransition(() => {
 });
 ```
 
+---
+
 # Performance
 
 ### Repaint vs Reflow
@@ -2392,6 +2424,8 @@ Reduce DOM depth             | Faster style calculation
 Avoid layout thrashing       | Batch reads and writes
 Critical CSS inlining        | Faster first paint
 ```
+
+---
 
 # BEM and Architecture
 
