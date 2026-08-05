@@ -1,6 +1,6 @@
 ## Table of Contents
 
-### Foundations (study first)
+### Foundations
 
 1. [Box Model](#box-model)
 2. [Cascade, Specificity & Keywords](#cascade-specificity--keywords)
@@ -8,9 +8,9 @@
 4. [Containing Block, Positioning & Stacking](#containing-block-positioning--stacking)
 5. [Intrinsic Sizing](#intrinsic-sizing)
 
-### Layout
+### Layout systems
 
-6. [Display and Layout](#display-and-layout)
+6. [Display essentials](#display-essentials)
 7. [Flexbox](#flexbox)
 8. [CSS Grid](#css-grid)
 
@@ -40,11 +40,7 @@
 
 # Box Model
 
-**Confusion:** You set `width: 200px` but the element is wider. Or two stacked blocks have less gap than `margin-bottom + margin-top`.
-
-**Model:** Every element is a rectangle made of content → padding → border → margin. `width`/`height` mean different things depending on `box-sizing`. Vertical margins of adjoining blocks **collapse** into one; horizontal margins never do.
-
-**Rule:** Use `border-box` globally. Prefer padding/gap/BFC for spacing control when collapse surprises you. Never remove focus outlines without `:focus-visible` replacement.
+Every element is a rectangle: content → padding → border → margin. `width`/`height` mean different things under `content-box` vs `border-box`. Vertical margins of adjoining blocks **collapse**; horizontal never do.
 
 ```
 ┌──────────────────────────────────────────┐
@@ -55,101 +51,104 @@
 │  │  │           PADDING            │  │  │
 │  │  │  ┌────────────────────────┐  │  │  │
 │  │  │  │        CONTENT         │  │  │  │
-│  │  │  │   (width × height)     │  │  │  │
 │  │  │  └────────────────────────┘  │  │  │
 │  │  └──────────────────────────────┘  │  │
 │  └────────────────────────────────────┘  │
 └──────────────────────────────────────────┘
 ```
 
-### box-sizing
+### Trap: width doesn’t mean “total size”
 
 ```css
-/* content-box (default) — width applies to content only */
+/* content-box (default) — padding/border ADD to width */
 .box {
   box-sizing: content-box;
   width: 200px;
   padding: 20px;
   border: 5px solid black;
-  /* Total: 200 + 40 + 10 = 250px */
+  /* Total: 250px */
 }
 
-/* border-box — width includes padding + border */
+/* border-box — width INCLUDES padding + border */
 .box {
   box-sizing: border-box;
   width: 200px;
   padding: 20px;
   border: 5px solid black;
-  /* Total: 200px (content shrinks) */
+  /* Total: 200px */
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 ```
 
-### Margin collapsing
+### Trap: margin collapsing
 
 When two vertical margins touch, the **larger** wins — they do not add.
 
 ```css
-.box1 { margin-bottom: 30px; }
-.box2 { margin-top: 20px; }
+.box1 {
+  margin-bottom: 30px;
+}
+.box2 {
+  margin-top: 20px;
+}
 /* Gap: 30px, not 50px */
 ```
 
-**Collapses when:**
-- Adjacent siblings (top meets bottom)
-- Parent and first/last child (nothing between them)
-- Empty blocks (own top + bottom)
+**Collapses:** adjacent siblings; parent ↔ first/last child (nothing between); empty block’s own top+bottom.
 
-**Prevents collapse:**
-- Padding or border on the parent (even 1px)
-- `overflow` other than `visible` on the parent
-- Flex or grid container (margins never collapse inside)
-- `display: flow-root` (cleanest modern fix)
+**Stops collapse:** parent padding/border; `overflow` ≠ `visible`; flex/grid container; `display: flow-root`.
 
 ```css
-.parent { display: flow-root; } /* new BFC — child margins stay inside */
+.parent {
+  display: flow-root;
+} /* child margins stay inside */
 ```
 
 ### Outline vs border
 
 ```css
-/* Border — part of the box, affects layout */
-.box { border: 2px solid red; }
-
-/* Outline — outside the box, no layout impact */
+.box {
+  border: 2px solid red;
+} /* affects layout */
 .box {
   outline: 2px solid blue;
   outline-offset: 4px;
-}
+} /* does not */
 
 /* BAD */
-*:focus { outline: none; }
-
+*:focus {
+  outline: none;
+}
 /* GOOD */
 *:focus-visible {
-  outline: 2px solid #4A90D9;
+  outline: 2px solid #4a90d9;
   outline-offset: 2px;
 }
 ```
 
 ### Self-check
 
-1. Why does `width: 100%` + `padding: 16px` overflow a parent under `content-box`?
+1. Why does `width: 100%` + `padding: 16px` overflow under `content-box`?
 2. Name three ways to stop parent/child margin collapse.
-3. Why is `outline` safer than `border` for focus rings?
+3. Why prefer `outline` over `border` for focus rings?
 
 ---
 
 # Cascade, Specificity & Keywords
 
-**Confusion:** A rule “should win” but doesn’t — or `!important` wars start. Or you reset a property and something unexpected comes back.
+Conflict resolution order:
 
-**Model:** Conflict resolution is ordered: **origin/importance → layers → specificity → source order**. Specificity is `(inline) / IDs / classes+attrs+pseudo-classes / elements+pseudo-elements`. Keywords control *which value* you pull from that cascade: `inherit`, `initial`, `unset`, `revert`, `revert-layer`.
-
-**Rule:** Prefer lower specificity and `@layer` over `!important`. Use `:where()` for zero-specificity bases. Know the five keywords cold for interviews.
+```
+1. Origin + importance (!important flips user/author ranking)
+2. @layer order (earlier layers lose; unlayered beats all layers)
+3. Specificity
+4. Source order (last wins)
+```
 
 ### Specificity
 
@@ -160,558 +159,1020 @@ p                    → 0-0-1
 .card                → 0-1-0
 #header              → 1-0-0
 #header .nav a:hover → 1-2-1
-
 /* 1 ID beats any number of classes */
 ```
 
 ```
-!important (by origin)  → strongest lever (avoid in app CSS)
-Inline styles           → style="..."
-ID                      → #id
-Class / attr / :pseudo  → .class, [attr], :hover
-Element / ::pseudo      → div, ::before
-Universal / :where()    → 0 specificity
+!important (by origin) → strongest lever (avoid in app CSS)
+Inline → ID → class/attr/:pseudo → element/::pseudo → * / :where()
 ```
 
-### Cascade order (simplified author view)
-
-```
-1. Origin + importance (!important flips user/author ranking)
-2. @layer order (earlier layers lose to later; unlayered beats layered)
-3. Specificity
-4. Source order (last wins)
-```
-
-### Selector essentials
+### Worked conflict: layer vs specificity
 
 ```css
-.card > p { }           /* direct child */
-h2 + p { }              /* adjacent sibling */
-h2 ~ p { }              /* general sibling */
-[href^="https"] { }     /* starts with */
-[href$=".pdf"] { }      /* ends with */
-[data-active] { }       /* attribute present */
-
-:is(#header, .nav) a { }     /* takes highest specificity of args */
-:where(.card, .panel) h2 { } /* always 0-0-0 for the :where part */
-.card:has(img) { }           /* parent selector */
+@layer components {
+  #widget .button {
+    color: blue;
+  } /* specificity 1-1-0, but layered */
+}
+.button {
+  color: red;
+} /* 0-1-0, unlayered — WINS */
 ```
 
-### Cascade keywords (P0)
+Unlayered author styles beat layered ones **regardless of specificity**. That is the point of `@layer` for vendor CSS.
+
+### Worked conflict: unset vs revert
 
 ```css
-color: inherit;       /* parent’s computed value */
-color: initial;       /* property’s initial value (often not what you want) */
-color: unset;         /* inherit if inherited property, else initial */
-display: revert;      /* roll back to user-agent (or user) style — “undo my author CSS” */
-color: revert-layer;  /* roll back to previous @layer only */
+/* Inherited property */
+.card {
+  color: navy;
+}
+.card .muted {
+  color: unset;
+} /* → inherits navy (like inherit) */
+
+/* Non-inherited property */
+.button {
+  display: flex;
+}
+.button.reset {
+  display: unset;
+} /* → initial (inline for span, etc.) — NOT “browser button” */
+.button.reset {
+  display: revert;
+} /* → user-agent button display */
 ```
 
-| Keyword        | Means                                      | Typical use                          |
-|----------------|--------------------------------------------|--------------------------------------|
-| `inherit`      | Take parent’s value                        | Force inheritance (`display` etc.) |
-| `initial`      | Spec initial for that property             | Rare; often too aggressive           |
-| `unset`        | Inherit *or* initial intelligently         | Soft reset of one property           |
-| `revert`       | Undo author styles toward browser default  | Unstyle a component island           |
-| `revert-layer` | Undo within cascade layers                 | Escape a utility layer cleanly       |
+| Keyword        | Means                                   | Typical use              |
+| -------------- | --------------------------------------- | ------------------------ |
+| `inherit`      | Parent’s computed value                 | Force inheritance        |
+| `initial`      | Spec initial                            | Rare; aggressive         |
+| `unset`        | Inherit if inherited prop, else initial | Soft one-property reset  |
+| `revert`       | Roll toward UA/user style               | Unstyle an island        |
+| `revert-layer` | Previous `@layer` only                  | Escape utilities cleanly |
 
 ```css
 @layer reset, base, components, utilities;
-
-@layer reset { * { margin: 0; } }
-@layer base { a { color: blue; } }
-@layer components { .nav a { color: white; } }
-/* Unlayered styles beat ALL layers */
-
-/* Escape hatch without !important */
-.prose a { color: revert-layer; }
+@layer components {
+  .nav a {
+    color: white;
+  }
+}
+.prose a {
+  color: revert-layer;
+}
 ```
 
-### Alternatives to !important
+### Selectors worth knowing
 
 ```css
-.button.button { }              /* double class: 0-2-0 */
-:where(.button) { color: blue; } /* 0 specificity base */
-.button { color: red; }          /* easily wins */
+.card > p {
+}
+h2 + p {
+}
+h2 ~ p {
+}
+[href^='https'] {
+}
+[href$='.pdf'] {
+}
+[data-active] {
+}
+:is(#header, .nav) a {
+} /* max specificity of args */
+:where(.card, .panel) h2 {
+} /* 0 specificity for :where */
+.card:has(img) {
+}
+```
 
-@layer vendor { .button { color: blue; } }
-.button { color: red; }          /* unlayered wins */
+### Escaping !important
+
+```css
+:where(.button) {
+  color: blue;
+} /* zero-specificity base */
+.button {
+  color: red;
+}
+@layer vendor {
+  .button {
+    color: blue;
+  }
+}
+.button {
+  color: red;
+} /* unlayered wins */
 ```
 
 ### Self-check
 
-1. Why does `#header` beat `.a.b.c.d.e`?
-2. Difference between `unset` and `revert`?
-3. Does an unlayered rule beat a more specific rule inside `@layer components`?
+1. Why does an unlayered `.button` beat `#x .button` inside `@layer components`?
+2. `unset` vs `revert` on `display` — what differs?
+3. What specificity does `:where(.a, .b) p` contribute from `:where`?
 
 ---
 
 # Formatting Contexts
 
-**Confusion:** Floats poke out of parents. Margins “leak” from a child. `overflow: hidden` “fixes” things for mysterious reasons.
+A **formatting context** is a layout arena. Block layout uses a **BFC**. Flex and Grid create their own. Inside a new BFC: floats are contained, margins don’t collapse through the boundary, and layout ignores outside floats.
 
-**Model:** A **formatting context** is a layout arena. Block layout happens in a **BFC** (Block Formatting Context). Flex/Grid create their own contexts (FFC/GFC). Inside a new BFC: floats are contained, margins don’t collapse through the boundary, and in-flow boxes lay out independently of outside floats.
-
-**Rule:** When you need “contain this layout,” create a BFC on purpose (`flow-root`, flex, grid, or non-visible `overflow`) — don’t cargo-cult `overflow: hidden`.
-
-### What creates a BFC
+**Prefer intentional BFCs** (`flow-root`, flex, grid) over cargo-cult `overflow: hidden`.
 
 ```css
 .el {
-  display: flow-root;     /* purpose-built — prefer this */
-  display: flex;          /* also a flex formatting context */
+  display: flow-root; /* purpose-built */
+  display: flex;
   display: grid;
-  float: left;
-  position: absolute;     /* or fixed */
-  overflow: auto;         /* any value except visible */
-  contain: layout;        /* or content / strict */
+  overflow: auto; /* any value except visible also creates a BFC */
+  contain: layout;
 }
 ```
-
-### What a BFC buys you
 
 ```css
-/* 1. Contain floats */
 .clearfix {
   display: flow-root;
-}
-
-/* 2. Stop margin collapse through parent edge */
+} /* contain floats */
 .card {
   display: flow-root;
-}
-
-/* 3. Ignore outside floats (new context beside a float) */
+} /* stop margin leak */
 .beside-float {
   display: flow-root;
-}
+} /* sit beside a float cleanly */
 ```
 
-### Floats in one sentence
+Floats leave normal flow but still affect line boxes. A BFC parent expands to enclose its floats — that is float containment.
 
-Floats are taken out of normal flow but still affect line boxes. A BFC parent expands to enclose its floats — that is float containment.
+**Flex/Grid note:** margins between flex/grid _items_ do not collapse. Item margins also don’t collapse through the container the way block children can.
 
 ### Self-check
 
-1. Why does `display: flow-root` fix margin leak without clipping overflow?
-2. Do flex item margins collapse with each other? With the flex container’s margins?
-3. Name two ways to create a BFC that don’t use `overflow`.
+1. Why does `flow-root` fix margin leak without clipping?
+2. Name two BFC triggers that aren’t `overflow`.
 
 ---
 
 # Containing Block, Positioning & Stacking
 
-**Confusion:** `position: absolute; top: 0` sticks to the wrong ancestor. `position: fixed` scrolls away. `z-index: 9999` still sits behind something.
+Three separate models. Trace them in order: **containing block → position mode → stacking context**.
 
-**Model:**
-1. **Containing block** — the rectangle offsets (`top`/`left`/…) are resolved against. It is *not* always “nearest positioned ancestor.”
-2. **Position modes** change participation in flow and which containing block is used.
-3. **Stacking contexts** nest; `z-index` only competes **inside** the same context.
+---
 
-**Rule:** Trace containing block first, then stacking context. Use `isolation: isolate` to create a clean local stacking root.
+## 1. Containing block
 
-### Containing block rules (P0)
+Offsets (`top`, `left`, `inset`, percentages for absolutely positioned boxes, etc.) resolve against the **containing block** — not always “nearest `position: relative` ancestor.”
 
-| Situation | Containing block for absolute |
-|-----------|-------------------------------|
-| Ancestor with `position` ≠ `static` | That ancestor’s padding edge |
-| Ancestor with `transform`, `filter`, `perspective`, `will-change: transform`, `contain: paint`, `backdrop-filter` | That ancestor (even if `position: static`) |
-| None of the above | Initial containing block (viewport-related) |
+| For `position: absolute`                                                                                          | Containing block is…                        |
+| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| Ancestor with `position` ≠ `static`                                                                               | That ancestor’s padding edge                |
+| Ancestor with `transform`, `filter`, `perspective`, `will-change: transform`, `contain: paint`, `backdrop-filter` | That ancestor — even if `position: static`  |
+| None of the above                                                                                                 | Initial containing block (viewport-related) |
 
-**Fixed:** normally the viewport — **unless** an ancestor creates a containing block via `transform` / `filter` / `perspective` / etc. Then “fixed” acts like absolute inside that ancestor.
+**`position: fixed`:** normally the viewport. **Same transform/filter/perspective ancestors** make fixed behave like absolute inside that ancestor.
 
-```css
-/* Classic absolute-in-relative */
-.parent { position: relative; }
-.badge { position: absolute; top: -8px; right: -8px; }
+### Worked bug: “fixed navbar scrolls away”
 
-/* The trap: transform on ancestor breaks fixed-to-viewport */
-.modal-root { transform: translateZ(0); } /* fixed children now trapped */
+```html
+<div class="app" style="transform: translateZ(0)">
+  <!-- GPU hint / animation remnant -->
+  <header style="position: fixed; top: 0">Nav</header>
+</div>
 ```
 
-### Position modes
+`transform` on `.app` creates a containing block. `fixed` is now stuck to `.app`, not the viewport — it scrolls away with the app.
 
-```css
-/* static — default; top/left/z-index ignored */
-/* relative — offset from normal position; space preserved; CB for abs kids */
-/* absolute — out of flow; CB = positioned/transformed ancestor */
-/* fixed — out of flow; CB = viewport (unless transformed ancestor) */
-/* sticky — relative until threshold, then stuck within ancestor */
+**Fix:** don’t put `transform`/`filter` on an ancestor of fixed UI; move the fixed node outside, or use a different compositing approach.
+
+### Worked bug: absolute sticks to the wrong box
+
+```html
+<section class="card">
+  <!-- position: static, but… -->
+  <div class="media" style="filter: blur(0)">
+    <!-- filter creates CB -->
+    <img />
+    <span class="badge" style="position: absolute; top: 0; right: 0">New</span>
+  </div>
+</section>
 ```
 
-**Sticky needs:** a threshold (`top` etc.), a scroll ancestor, and no `overflow: hidden|auto|scroll` on ancestors between it and the scrollport (common trap).
+You intended `.card { position: relative }`, but the badge positions against `.media` because `filter` created a containing block first.
 
-### Stacking contexts
+---
 
-`z-index` works on positioned elements and flex/grid children.
-
-**Creates a new stacking context (common list):** `position` + `z-index` other than `auto`, `opacity < 1`, `transform`, `filter`, `perspective`, `clip-path`, `isolation: isolate`, `will-change`, `contain: paint`.
+## 2. Position modes
 
 ```css
-.parent-a { position: relative; z-index: 1; }
-.parent-b { position: relative; z-index: 2; }
-.child-of-a { position: relative; z-index: 9999; }
-/* child-of-a still behind parent-b — nested context loses */
-
-.component { isolation: isolate; } /* local stacking root, few side effects */
+/* static   — default; top/left/z-index ignored */
+/* relative — offset from normal position; original space kept; CB for abs kids */
+/* absolute — out of flow; positioned vs containing block above */
+/* fixed    — out of flow; vs viewport unless CB-creating ancestor */
+/* sticky   — relative until threshold, then stuck within ancestor */
 ```
 
-### Centering
+```css
+.parent {
+  position: relative;
+}
+.badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+}
+```
+
+### Worked bug: sticky does nothing
+
+Sticky fails unless **all** of these hold:
+
+1. A threshold: `top`, `bottom`, `left`, or `right` (not auto)
+2. A scrolling ancestor (the sticky element’s nearest scrollport)
+3. No ancestor between sticky and that scrollport with `overflow: hidden | auto | scroll` (unless that ancestor _is_ the intended scrollport)
+4. Room to stick — parent taller than the sticky element; sticky can’t escape its parent
 
 ```css
-.parent { display: flex; justify-content: center; align-items: center; }
-.parent { display: grid; place-items: center; }
-.child { position: absolute; inset: 50% auto auto 50%; transform: translate(-50%, -50%); }
-.child { width: 500px; margin-inline: auto; }
+/* Broken: overflow on a wrapper clips the sticky chain */
+.sidebar {
+  overflow: auto;
+}
+.sidebar h2 {
+  position: sticky;
+  top: 0;
+} /* sticks inside sidebar — OK if that’s intended */
+
+/* Broken: overflow:hidden on a decorative parent of a page-level sticky header */
+.page-wrap {
+  overflow-x: hidden;
+} /* often kills sticky headers */
+.site-header {
+  position: sticky;
+  top: 0;
+}
+```
+
+**Fix:** move overflow to a lower child, use `overflow-x: clip` where you only need clipping (see Overflow), or stick within the scroll container you actually control.
+
+---
+
+## 3. Stacking contexts
+
+`z-index` only competes **inside the same stacking context**. Nested contexts are ordered by their parent contexts first.
+
+**Common creators:** `position` + `z-index` ≠ `auto`; `opacity < 1`; `transform`; `filter`; `perspective`; `clip-path`; `isolation: isolate`; `will-change`; `contain: paint`.
+
+### Worked bug: z-index 9999 still behind
+
+```css
+.modal-root {
+  position: relative;
+  z-index: 1;
+}
+.dropdown {
+  position: relative;
+  z-index: 2;
+} /* sibling, later painting world */
+.modal-root .dialog {
+  position: relative;
+  z-index: 9999;
+}
+/* .dialog loses to .dropdown — parent context is only z-index: 1 */
+```
+
+**Fix:** raise `.modal-root`’s context, render the modal in a portal at the top of the DOM, or use the **top layer** (`dialog` / `popover`). For local UI, `isolation: isolate` creates a clean stacking root without opacity/transform side effects:
+
+```css
+.component {
+  isolation: isolate;
+}
+```
+
+### Centering cheatsheet
+
+```css
+.parent {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.parent {
+  display: grid;
+  place-items: center;
+}
+.child {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+}
+.child {
+  width: 500px;
+  margin-inline: auto;
+}
 ```
 
 ### Self-check
 
-1. Why can `position: fixed` fail inside a CSS-transformed modal?
-2. Why doesn’t `z-index: 9999` beat a parent with `z-index: 2` sibling?
-3. What three conditions does sticky need?
+1. List three CSS properties that create a containing block for fixed descendants.
+2. Why can `overflow-x: hidden` on `body` break a sticky header?
+3. Explain why child `z-index: 9999` can still paint under a sibling of its parent.
 
 ---
 
 # Intrinsic Sizing
 
-**Confusion:** Flex/grid items refuse to shrink, text won’t truncate, or `1fr` behaves like content-sized tracks.
-
-**Model:** Boxes have **preferred** and **minimum** content sizes (`min-content`, `max-content`, `fit-content`). In flex/grid, the **automatic minimum size** often floors at `min-content`, so items won’t shrink below their longest word/image unless you override (`min-width: 0` / `min-height: 0`).
-
-**Rule:** When something won’t shrink or truncate inside flex/grid, set `min-width: 0` (or `overflow: hidden`) on the item. Prefer `minmax(0, 1fr)` over bare `1fr` when tracks must be allowed to shrink.
+Boxes have preferred and minimum content sizes. Flex/grid’s **automatic minimum size** often floors at roughly `min-content`, so items refuse to shrink below the longest word/image until you override.
 
 ### Keywords
 
 ```css
-width: min-content;   /* shrink-wrap to longest unbreakable piece */
-width: max-content;   /* expand to fit content without wrapping */
-width: fit-content;   /* min(max-content, available) roughly */
+width: min-content; /* shrink-wrap to longest unbreakable piece */
+width: max-content; /* fit content without wrapping */
+width: fit-content; /* ~min(max-content, available) */
 width: fit-content(200px);
 ```
 
-### The flex/grid shrink floor
+### Before / after: truncation in a flex row
 
 ```css
-/* Default-ish mental model: min-width: auto ≈ min-content */
-.item {
+/* BEFORE — text won’t ellipsis; item won’t shrink */
+.row {
+  display: flex;
+}
+.title {
   flex: 1;
-  min-width: 0;              /* allow shrink below content size */
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* min-width: auto ≈ min-content → floor is full text width */
+
+/* AFTER */
+.title {
+  flex: 1;
+  min-width: 0; /* allow shrink below min-content */
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+```
+
+### Before / after: equal grid columns overflowing
+
+```css
+/* BEFORE — 1fr is often minmax(auto, 1fr); auto won’t go below min-content */
+.grid {
+  grid-template-columns: 1fr 1fr;
 }
 
+/* AFTER */
 .grid {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  /* bare 1fr is often minmax(auto, 1fr) — auto won’t go below min-content */
 }
 ```
 
-### `fr` vs `auto` vs `%`
+| Value            | Role                                       |
+| ---------------- | ------------------------------------------ |
+| `auto`           | Size to content (intrinsic)                |
+| `1fr`            | Share free space; min often still `auto`   |
+| `%`              | Percentage of container / CB               |
+| `minmax(0, 1fr)` | Flexible **and** allowed to shrink to zero |
 
-```
-auto     — size to content (intrinsic)
-1fr      — share free space (flexible); min often still auto
-50%      — percentage of the grid container / CB
-minmax(0, 1fr) — flexible AND allowed to shrink to zero
-```
+Use `width: min-content` on purpose for shrink-wrapped chips/tags; use `max-content` when you must avoid wrapping (careful on small screens).
 
 ### Self-check
 
-1. Why does `flex: 1` alone often fail to ellipsize text?
-2. What’s the difference between `1fr` and `minmax(0, 1fr)`?
-3. When would you use `width: min-content` on purpose?
+1. Why doesn’t `flex: 1` alone enable ellipsis?
+2. `1fr` vs `minmax(0, 1fr)` — what’s the practical difference?
 
 ---
 
-# Display and Layout
+# Display essentials
 
-**Confusion:** `width` on a `span` does nothing. `display: none` vs `visibility` vs `opacity` get mixed up. A wrapper breaks flex/grid participation.
+`display` sets **outer** role (how the box participates among siblings) and **inner** layout mode (how children layout). Real UI layout → flex/grid (next sections). This is the compact leftover.
 
-**Model:** `display` chooses the element’s **outer** role (block vs inline level) and **inner** layout mode (flow, flex, grid, …). Outer role controls how it sits among siblings; inner mode controls how children are laid out.
-
-**Rule:** Use `inline-block` only when you need inline flow + box dimensions. Prefer flex/grid for real UI layout. Use `contents` carefully (a11y caveats in some browsers historically).
-
-### Outer roles
-
-```css
-/* block — new line, full width by default, full box model */
-div { display: block; }
-
-/* inline — shares line, ignores width/height; vertical margin doesn’t push */
-span { display: inline; width: 200px; /* ignored */ }
-
-/* inline-block — inline placement + respects width/height/margin */
-.badge { display: inline-block; width: 100px; height: 30px; }
-```
-
-### Hide semantics
+| Value                | Behavior                                                               |
+| -------------------- | ---------------------------------------------------------------------- |
+| `block`              | New line, full width by default, full box model                        |
+| `inline`             | Shares line; ignores `width`/`height`; vertical margin doesn’t push    |
+| `inline-block`       | Inline placement + respects width/height/margin                        |
+| `contents`           | Box disappears; children join grandparent’s layout                     |
+| `flow-root`          | New BFC (see Formatting Contexts)                                      |
+| `none`               | Removed from layout + a11y tree; children can’t override               |
+| `visibility: hidden` | Invisible, space kept; children can set `visible`                      |
+| `opacity: 0`         | Invisible, space kept, **still interactive + accessible** — fades only |
 
 ```css
-display: none;       /* removed from layout + a11y tree; kids can’t override */
-visibility: hidden;  /* space kept; kids CAN set visibility: visible */
-opacity: 0;          /* space kept; still interactive + accessible — use for fades */
+.badge {
+  display: inline-block;
+  width: 100px;
+  height: 30px;
+}
+.wrapper {
+  display: contents;
+}
 ```
-
-```css
-.wrapper { display: contents; } /* children join grandparent’s layout */
-.container { display: flow-root; } /* see Formatting Contexts */
-```
-
-### Self-check
-
-1. Why is `opacity: 0` wrong for “remove from tab order”?
-2. What does `display: contents` do to the box tree?
-3. Block vs inline: which honors `width`?
 
 ---
 
 # Flexbox
 
-**Confusion:** Equal columns aren’t equal. Footer won’t stick down. Truncation fails. `flex: 1` vs `flex: auto` surprise you.
+One-dimensional layout: distribute space along a **main axis**, align on the **cross axis**.
 
-**Model:** One-dimensional distribution along a **main axis** (grow/shrink/basis) and alignment on the **cross axis**. Default `flex: 0 1 auto`. Automatic minimum size (see [Intrinsic Sizing](#intrinsic-sizing)) often blocks shrinking.
+```
+flex-direction: row (default)
+─────────────────────────────────────────
+main → → → → → → → → → → → → → → → → →
+│  [item]  [item]  [item]               │
+│         cross (↓)                     │
+─────────────────────────────────────────
 
-**Rule:** Decide grow/shrink/basis explicitly. For equal flexible children that must shrink, use `flex: 1; min-width: 0` (or `flex: 1 1 0`).
+flex-direction: column
+main ↓        cross →
+[item]
+[item]
+[item]
+```
 
-### Container
+`flex-wrap: wrap` allows multiple **flex lines**. Then `align-content` distributes those lines on the cross axis; `align-items` still aligns items within each line.
+
+---
+
+## Container: axes and alignment
 
 ```css
 .container {
   display: flex;
-  flex-direction: row;           /* main axis */
-  flex-wrap: wrap;
-  justify-content: space-between; /* main */
-  align-items: center;            /* cross */
-  align-content: center;          /* multi-line cross — needs wrap */
+  flex-direction: row; /* row | row-reverse | column | column-reverse */
+  flex-wrap: nowrap; /* nowrap | wrap | wrap-reverse */
+  flex-flow: row wrap; /* shorthand: direction + wrap */
+
+  justify-content: flex-start; /* MAIN axis: pack / space items */
+  align-items: stretch; /* CROSS axis: default stretch */
+  align-content: stretch; /* CROSS axis, multi-line only — needs wrap */
+
+  gap: 16px; /* preferred over margin hacks between items */
+  row-gap: 16px;
+  column-gap: 8px;
+}
+```
+
+### Which alignment property?
+
+| Goal                                          | Property          |
+| --------------------------------------------- | ----------------- |
+| Space along main axis (horizontal in a row)   | `justify-content` |
+| Align items on cross axis (vertical in a row) | `align-items`     |
+| One item overrides cross alignment            | `align-self`      |
+| Distribute **lines** when wrapped             | `align-content`   |
+| Space between items (both axes)               | `gap`             |
+
+```css
+justify-content: flex-start | flex-end | center | space-between | space-around |
+  space-evenly;
+align-items: stretch | flex-start | flex-end | center | baseline;
+```
+
+**Gotcha:** `align-content` does nothing if there’s only one flex line (`nowrap` or not enough items to wrap).
+
+---
+
+## Item sizing algorithm (the part that builds understanding)
+
+For each flex item, think in three steps on the **main** size:
+
+### Step 1 — `flex-basis` (starting main size)
+
+```css
+flex-basis: auto; /* use width/height if set, else content size */
+flex-basis: 0; /* start from zero — content ignored for distribution */
+flex-basis: 200px; /* explicit start */
+```
+
+### Step 2 — `flex-shrink` if overflow
+
+If the sum of basis sizes exceeds the container, items shrink proportional to `flex-shrink` (default `1`). An item with `flex-shrink: 0` stays rigid.
+
+**Floor:** automatic minimum size ≈ `min-content` unless you set `min-width: 0` / `min-height: 0` (see [Intrinsic Sizing](#intrinsic-sizing)).
+
+### Step 3 — `flex-grow` if free space remains
+
+Extra space is distributed proportional to `flex-grow` (default `0`).
+
+### The `flex` shorthand
+
+```css
+flex: 0 1 auto; /* default — don’t grow, may shrink, basis auto */
+flex: 1; /* 1 1 0% — grow/shrink equally from zero basis */
+flex: auto; /* 1 1 auto — grow/shrink but start from content size */
+flex: none; /* 0 0 auto — rigid */
+flex: 1 0 auto; /* grow, never shrink */
+```
+
+**Why equal columns fail with `flex: auto`:** each item’s content size differs, so they start unequal and then grow equally — taller content stays wider. Prefer `flex: 1` (basis 0) or `flex: 1 1 0` plus `min-width: 0` for equal flexible columns.
+
+**Numeric intuition:**
+
+```css
+.a {
+  flex-grow: 1;
+}
+.b {
+  flex-grow: 2;
+}
+/* With basis 0, B gets ~2× the free space of A */
+```
+
+---
+
+## Common patterns (with why)
+
+```css
+/* Navbar: group left / right */
+.navbar {
+  display: flex;
+  align-items: center;
   gap: 16px;
 }
-```
+.navbar .spacer {
+  flex: 1;
+} /* OR */
+.navbar .actions {
+  margin-left: auto;
+} /* push trailing cluster */
 
-### Items
+/* Sticky footer */
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+main {
+  flex: 1;
+} /* absorbs free vertical space */
 
-```css
+/* Card: body fills, footer pinned */
+.card {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  min-width: 0;
+}
+.card-body {
+  flex: 1;
+}
+.card-footer {
+  margin-top: auto;
+} /* push to cross-end of column flex */
+
+/* Truncation */
 .item {
-  flex-grow: 0;
-  flex-shrink: 1;
-  flex-basis: auto;
-  flex: 0 1 auto;   /* default */
-  flex: 1;          /* 1 1 0% — ignore content size when distributing */
-  flex: auto;       /* 1 1 auto — respect content when distributing */
-  flex: none;       /* 0 0 auto — rigid */
-  align-self: center;
-  order: -1;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 ```
 
-### Patterns
+---
+
+## Extra behaviors worth knowing
 
 ```css
-.navbar { display: flex; justify-content: space-between; align-items: center; }
+/* Absolute flex child — positioned against the flex container’s padding box
+   (the container is the CB if it’s the containing block). Removed from flex flow. */
+.container {
+  display: flex;
+  position: relative;
+}
+.container .badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
 
-body { display: flex; flex-direction: column; min-height: 100dvh; }
-main { flex: 1; }
+/* order — visual only; keep DOM order for a11y/tab */
+.item:nth-child(1) {
+  order: 2;
+}
 
-.card { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.card-body { flex: 1; }
-.card-footer { margin-top: auto; }
-
-.item:last-child { margin-left: auto; } /* push end */
+/* Nested flex — outer for page chrome, inner for component alignment */
 ```
+
+**`gap` vs margin:** `gap` does not collapse and doesn’t add space outside the container edges the way item margins can. Prefer `gap` for item spacing; use `margin-left: auto` for “push this item/group to the end.”
+
+---
+
+## Flex traps checklist
+
+| Symptom                  | Likely cause                       | Fix                                                 |
+| ------------------------ | ---------------------------------- | --------------------------------------------------- |
+| Unequal “equal” columns  | `flex: auto` / content-sized basis | `flex: 1` + `min-width: 0`                          |
+| Text won’t truncate      | `min-width: auto`                  | `min-width: 0` on the item                          |
+| `align-content` ignored  | Single line                        | `flex-wrap: wrap` + enough items/width              |
+| Image blows the row      | Intrinsic min size                 | `min-width: 0` on item; `img { max-width: 100% }`   |
+| Vertical centering fails | Confused main/cross                | Check `flex-direction`; use `align-items` for cross |
 
 ### Self-check
 
-1. `flex: 1` vs `flex: auto` — when does content size still dominate?
-2. Why `min-width: 0` on flex children with ellipsis?
-3. How do you pin a footer to the bottom with flex?
+1. Walk basis → shrink → grow for three items with `flex: 1`, `flex: 2`, `flex: none` in a 600px row (basis 0).
+2. When does `align-content: center` visibly do nothing?
+3. Why does `margin-left: auto` on one item push it to the end?
+4. `flex: 1` vs `flex: auto` for a row of cards with different title lengths?
 
 ---
 
 # CSS Grid
 
-**Confusion:** `auto-fill` vs `auto-fit`. Items overflow tracks. Subgrid unclear. You reach for media queries when `minmax` would suffice.
+Two-dimensional layout: you size **tracks** (rows/columns); items occupy **cells** (and can span). Flex distributes along one axis from content; Grid lets you design the skeleton first.
 
-**Model:** Two-dimensional track-based layout. You size **tracks**; items are placed into cells. `fr` shares **free** space after intrinsic/fixed contributions. `auto-fit` collapses empty tracks; `auto-fill` keeps them.
+```
+          line 1     line 2     line 3     line 4
+            |          |          |          |
+ line 1  ———+——————————+——————————+——————————+———
+            |  cell    |  cell    |  cell    |
+ line 2  ———+——————————+——————————+——————————+———
+            |  cell    |  cell    |  cell    |
+ line 3  ———+——————————+——————————+——————————+———
 
-**Rule:** Page layout → grid. Component axis alignment → flex. Responsive cards → `repeat(auto-fit, minmax(min(100%, 300px), 1fr))`. Allow shrink with `minmax(0, 1fr)` when needed.
+Tracks = spaces BETWEEN lines. Placement uses line numbers or names.
+```
 
-### Tracks & alignment
+---
+
+## Explicit vs implicit grid
 
 ```css
 .grid {
   display: grid;
+  /* Explicit — you defined these */
   grid-template-columns: 200px 1fr 200px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
-  grid-auto-rows: 150px;
-  grid-auto-flow: dense;
-  gap: 16px;
-  place-items: center;      /* align items in cells */
-  justify-content: center;  /* align grid as a whole if extra space */
+  grid-template-rows: auto 1fr;
+
+  /* Implicit — created when items are placed outside explicit tracks */
+  grid-auto-rows: 120px;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: row; /* row | column | dense */
 }
 ```
 
-### Areas & placement
+`dense` packs later items into earlier holes left by spanning items — visual order can diverge from DOM order (a11y caution).
+
+---
+
+## Track sizing (how to think, not the full spec)
+
+1. **Fixed** tracks (`px`, definite sizes) take their space first.
+2. **Intrinsic** tracks (`auto`, `min-content`, `max-content`) size to content.
+3. **Flexible** tracks (`fr`) share **remaining free space**.
+
+```css
+grid-template-columns: 200px 1fr 1fr; /* fixed + free space split */
+grid-template-columns: repeat(
+  3,
+  minmax(0, 1fr)
+); /* equal flexible, can shrink */
+grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+```
+
+`minmax(min, max)` clamps a track. `min(100%, 250px)` inside `minmax` prevents overflow on narrow containers (the “don’t require 250px when the parent is 200px” fix).
+
+---
+
+## Alignment: items vs the grid
+
+```css
+.grid {
+  justify-items: stretch; /* default — horizontal alignment OF EACH ITEM in its cell */
+  align-items: stretch; /* vertical alignment OF EACH ITEM in its cell */
+  place-items: center; /* both */
+
+  justify-content: start; /* if total grid width < container — position the grid */
+  align-content: start; /* same for block axis */
+  place-content: center;
+}
+```
+
+| Property                            | Aligns                                              |
+| ----------------------------------- | --------------------------------------------------- |
+| `justify-items` / `align-items`     | Items inside their cells                            |
+| `justify-self` / `align-self`       | One item in its cell                                |
+| `justify-content` / `align-content` | The whole grid when tracks don’t fill the container |
+
+---
+
+## Placement
+
+```css
+.item {
+  grid-column: 1 / 3; /* start line / end line (end is exclusive) */
+  grid-column: span 2; /* span 2 tracks from auto-placement */
+  grid-row: 2 / 3;
+  grid-area: 1 / 1 / 3 / 3; /* row-start / col-start / row-end / col-end */
+}
+
+/* Named lines */
+.grid {
+  grid-template-columns: [full-start] 1fr [content-start] minmax(
+      0,
+      70ch
+    ) [content-end] 1fr [full-end];
+}
+.full {
+  grid-column: full-start / full-end;
+}
+.content {
+  grid-column: content-start / content-end;
+}
+```
+
+### Template areas
 
 ```css
 .layout {
   display: grid;
-  grid-template-columns: 200px 1fr 200px;
-  grid-template-rows: 60px 1fr 40px;
+  grid-template-columns: 240px 1fr 240px;
+  grid-template-rows: auto 1fr auto;
   grid-template-areas:
-    "header  header  header"
-    "sidebar content aside"
-    "footer  footer  footer";
+    'header  header  header'
+    'sidebar content aside'
+    'footer  footer  footer';
+  min-height: 100dvh;
+  gap: 0;
 }
-.header { grid-area: header; }
+.header {
+  grid-area: header;
+}
+.sidebar {
+  grid-area: sidebar;
+}
+.content {
+  grid-area: content;
+}
+.aside {
+  grid-area: aside;
+}
+.footer {
+  grid-area: footer;
+}
 
-.item {
-  grid-column: 1 / 3;       /* lines */
-  grid-column: span 2;
-  grid-area: 1 / 1 / 3 / 3; /* r-start / c-start / r-end / c-end */
+@media (width <= 768px) {
+  .layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'header'
+      'content'
+      'sidebar'
+      'aside'
+      'footer';
+  }
 }
 ```
 
-### auto-fill vs auto-fit
+Each area name must form a single rectangle.
+
+---
+
+## auto-fill vs auto-fit (concrete story)
+
+Both: “as many tracks as fit given this `minmax`.”
 
 ```css
-repeat(auto-fill, minmax(200px, 1fr)); /* keeps empty tracks */
-repeat(auto-fit, minmax(200px, 1fr));  /* collapses empty — items stretch */
+.grid {
+  width: 900px;
+  gap: 0;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+/* 900px fits four 200px tracks → 4 columns.
+   With only 2 items, auto-fill KEEPS 2 empty tracks.
+   Items stay in the first two columns; leftover track space remains as empty columns. */
+
+.grid {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+/* Same 2 items: empty tracks COLLAPSE.
+   The 2 items stretch (1fr) across the full 900px. */
 ```
 
-### Subgrid
+**Rule of thumb:** responsive card grids → `auto-fit`. Prefer reserved empty columns (dashboard skeletons) → `auto-fill`.
+
+Always consider:
 
 ```css
-.child {
-  grid-column: span 2;
+repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+```
+
+so a single column can shrink below 250px on tiny screens.
+
+---
+
+## Subgrid — problem → solution
+
+**Problem:** a row of cards is a grid, but titles/footers inside each card don’t line up across cards — each card’s inner grid is independent.
+
+**Solution:** child grid inherits parent tracks with `subgrid`.
+
+```css
+.cards {
   display: grid;
-  grid-template-columns: subgrid; /* share parent column tracks */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+.card {
+  display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid; /* rows align with parent’s row tracks */
+  gap: inherit;
+}
+.card h2 {
+  grid-row: 1;
+}
+.card .body {
+  grid-row: 2;
+}
+.card .footer {
+  grid-row: 3;
 }
 ```
 
-Use when nested items must align to the **parent’s** tracks (card titles across a row).
+Use when nested alignment must match the **parent** track lines. Browser support is mainstream now; still progressive-enhance if you support very old engines.
 
-### Full-bleed pattern
+---
+
+## Patterns
 
 ```css
+/* Responsive cards — often zero media queries */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 24px;
+}
+
+/* Full-bleed inside a centered measure */
 .content {
   display: grid;
   grid-template-columns: 1fr min(65ch, 100%) 1fr;
 }
-.content > * { grid-column: 2; }
-.full-bleed { grid-column: 1 / -1; }
+.content > * {
+  grid-column: 2;
+}
+.full-bleed {
+  grid-column: 1 / -1;
+}
+
+/* Holy grail-ish with 1fr middle */
+.app {
+  display: grid;
+  grid-template: auto 1fr auto / auto 1fr auto;
+  min-height: 100dvh;
+}
 ```
 
-### Flex vs Grid
+---
 
-```
-Flex — one axis, content-driven, nav, toolbars, centering
-Grid — two axes, layout-driven, pages, card grids, dashboards
-```
+## Flex vs Grid — choosing
+
+| Use Flex when…                         | Use Grid when…                       |
+| -------------------------------------- | ------------------------------------ |
+| One axis, content-driven               | Two axes, layout-driven              |
+| Nav, toolbars, input groups, centering | Page shells, card grids, dashboards  |
+| Unknown number of items packing a row  | Explicit rows **and** columns matter |
+| Component internals                    | Page / section skeleton              |
+
+They compose: **grid for the page, flex inside components**.
 
 ### Self-check
 
-1. When do you pick `auto-fit` over `auto-fill`?
-2. Why might `1fr` tracks refuse to shrink?
-3. What problem does subgrid solve that nested grids don’t?
+1. Draw line numbers for `grid-template-columns: 1fr 1fr 1fr` and place an item `grid-column: 2 / 4`.
+2. Why do empty columns remain with `auto-fill` but vanish with `auto-fit`?
+3. When do `justify-items` and `justify-content` differ?
+4. What problem does subgrid solve that a nested independent grid doesn’t?
+5. Why `minmax(0, 1fr)` instead of `1fr` for equal columns with long content?
 
 ---
 
 # Responsive Design
 
-**Confusion:** Too many breakpoints. Components break in a sidebar but not on “mobile.” Hover styles fire on touch.
+Responsive layout reacts to **available size**, **input modality**, and **user preference** — not only “mobile vs desktop widths.”
 
-**Model:** Responsive layout is **available size + input modality + user preference**. Prefer fluid sizing and **container queries** for components; media queries for viewport/page and preferences.
+### Decision guide
 
-**Rule:** Mobile-first `min-width` queries. Components → `@container`. Prefer `clamp` over breakpoint font jumps. Feature-detect hover/pointer.
+| Question                                                                   | Prefer                                           |
+| -------------------------------------------------------------------------- | ------------------------------------------------ |
+| Does this **component** change when its **slot** is narrow (e.g. sidebar)? | **Container query**                              |
+| Does the **page** chrome change with viewport?                             | **Media query** (`min-width`, mobile-first)      |
+| Fluid type/spacing without breakpoint jumps?                               | **`clamp` / fluid units**                        |
+| Hover affordances?                                                         | Gate with `(hover: hover)` and `(pointer: fine)` |
+| Dark mode / reduced motion?                                                | `prefers-*` queries + tokens                     |
+
+### Scenario: same card, different homes
+
+A product card is full-width on a phone, half of main on desktop, and squeezed in a 280px sidebar widget. **Viewport** media queries can’t tell “sidebar vs main.” Give the parent a containment context:
 
 ```css
-/* Page / device */
-@media (width <= 768px) { }
-@media (768px <= width <= 1024px) { }
-@media (hover: hover) and (pointer: fine) { .card:hover { } }
-@media (prefers-color-scheme: dark) { }
-@media (prefers-reduced-motion: reduce) { }
-
-/* Mobile-first */
-.card { padding: 16px; }
-@media (min-width: 768px) { .card { padding: 24px; display: flex; } }
-
-/* Component-owned */
-.card-container {
+.widget,
+.main {
   container-type: inline-size;
-  container-name: card;
-}
-@container card (min-width: 400px) {
-  .card { display: flex; gap: 16px; }
+  container-name: card-slot;
 }
 
-h1 { font-size: clamp(1.5rem, 4vw, 3rem); }
+@container card-slot (min-width: 400px) {
+  .card {
+    display: flex;
+    gap: 16px;
+  }
+}
+@container card-slot (max-width: 399px) {
+  .card {
+    display: block;
+  }
+}
+```
+
+Use `@media` for the site header collapsing, not for every card.
+
+### Mobile-first page queries
+
+```css
+.card {
+  padding: 16px;
+}
+@media (min-width: 768px) {
+  .card {
+    padding: 24px;
+  }
+}
+
+@media (width <= 768px) {
+} /* modern range syntax */
+@media (hover: hover) and (pointer: fine) {
+  .card:hover {
+    transform: translateY(-2px);
+  }
+}
+@media (prefers-color-scheme: dark) {
+}
+@media (prefers-reduced-motion: reduce) {
+}
+```
+
+```css
+h1 {
+  font-size: clamp(1.5rem, 1rem + 2vw, 3rem);
+}
+.container {
+  width: clamp(300px, 90vw, 1200px);
+  margin-inline: auto;
+}
 ```
 
 ### Self-check
 
-1. When is a container query better than a media query?
-2. Why gate hover styles with `(hover: hover)`?
-3. Write a fluid width: min 300, preferred 90vw, max 1200.
+1. Card breaks in a sidebar but looks fine on “mobile width” — MQ or CQ?
+2. Write a fluid width: min 300, preferred 90vw, max 1200.
 
 ---
 
 # Units
 
-**Confusion:** `100vh` crops on mobile. `em` compounds. `rem` vs `px` arguments in reviews.
-
-**Model:** Absolute units don’t scale. `%`/`em`/`rem` resolve against different references. Viewport units resolve against the **viewport**; `dvh`/`svh`/`lvh` disambiguate mobile browser chrome.
-
-**Rule:** `rem` for type/spacing scale; `em` for component-local scaling; `px` for hairline borders/shadows; `ch` for measure; `dvh` for full-height UI on mobile.
+| Unit              | Resolves against                              | Use                                               |
+| ----------------- | --------------------------------------------- | ------------------------------------------------- |
+| `px`              | Absolute                                      | Borders, shadows, MQ thresholds                   |
+| `rem`             | Root font-size                                | Type, spacing scales                              |
+| `em`              | Element’s font-size (for `font-size`: parent) | Component-local padding that scales with its type |
+| `%`               | Containing block (varies by property)         | Fluid widths                                      |
+| `vw`/`vh`         | Viewport                                      | Full-bleed sections (prefer `dvh` for height)     |
+| `dvh`/`svh`/`lvh` | Dynamic / small / large viewport              | Mobile browser chrome                             |
+| `ch`              | Width of “0” glyph                            | Prose `max-width` (~65ch)                         |
+| `fr`              | Grid free space                               | Grid tracks only                                  |
 
 ```css
-font-size: 1.5rem;   /* root (usually 16px → 24px) */
-font-size: 1.5em;    /* relative to element’s own font-size (for font-size: parent) */
-max-width: 65ch;     /* readable line length */
-
-height: 100vh;       /* fallback */
-height: 100dvh;      /* updates as browser chrome shows/hides */
-height: 100svh;      /* smallest (chrome visible) */
-height: 100lvh;      /* largest (chrome hidden) */
+.hero {
+  height: 100vh; /* fallback */
+  height: 100dvh; /* avoids mobile URL-bar overflow */
+}
 ```
 
-| Unit | Use |
-|------|-----|
-| `px` | borders, shadows, media-query thresholds |
-| `rem` | type, spacing, component widths that scale with root |
-| `em` | padding that should scale with the component’s font |
-| `%` | fluid width vs parent |
-| `dvh` | full-height sections on mobile |
-| `ch` | max-width for prose |
-| `fr` | grid free space |
-
-### Self-check
-
-1. Why is `100vh` risky on iOS Safari?
-2. When is `em` better than `rem` for button padding?
-3. What does `65ch` approximate?
+`em` compounds when nested for `font-size`; `rem` does not — that’s the usual review comment.
 
 ---
 
 # Logical Properties
 
-**Confusion:** `margin-left` breaks in RTL. You write four physical inset lines for a full overlay.
+Physical (`top`/`left`/…) are screen-relative. Logical follow **writing mode**: **block** = stacking axis, **inline** = text axis. In horizontal LTR, block ≈ vertical, inline ≈ horizontal.
 
-**Model:** Physical directions (top/right/…) are tied to the screen. **Logical** properties follow writing mode: **block** = stacking axis, **inline** = text axis. In horizontal-tb LTR, block ≈ vertical, inline ≈ horizontal.
-
-**Rule:** Prefer logical properties for spacing, sizing, and insets — especially shared/UI library CSS. Even in LTR-only apps, shorthands like `margin-inline` and `inset` are clearer.
+| Physical                   | Logical                                    |
+| -------------------------- | ------------------------------------------ |
+| `margin-top` / `bottom`    | `margin-block-start` / `end`               |
+| `margin-left` / `right`    | `margin-inline-start` / `end`              |
+| `width` / `height`         | `inline-size` / `block-size`               |
+| `top` / `left`             | `inset-block-start` / `inset-inline-start` |
+| `top/right/bottom/left: 0` | `inset: 0`                                 |
+| `text-align: left`         | `text-align: start`                        |
 
 ```css
-margin-top     → margin-block-start
-margin-left    → margin-inline-start
-width          → inline-size
-height         → block-size
-left           → inset-inline-start
-top/right/bottom/left: 0 → inset: 0
-text-align: left → text-align: start
-
 .container {
   max-inline-size: 1200px;
   margin-inline: auto;
@@ -719,30 +1180,21 @@ text-align: left → text-align: start
 .card {
   padding-block: 16px;
   padding-inline: 24px;
-  border-inline-start: 4px solid blue;
+  border-inline-start: 4px solid blue; /* “start” edge in LTR and RTL */
 }
 ```
 
-### Self-check
-
-1. In RTL, what physical side is `margin-inline-start`?
-2. Replace `top/right/bottom/left: 0` with one property.
-3. Why prefer `text-align: start` over `left`?
+In RTL, `margin-inline-start` is on the **right**. Prefer logical props in shared/UI-library CSS.
 
 ---
 
 # Aspect Ratio
 
-**Confusion:** Old `padding-top: 56.25%` hacks linger. Images blow past the intended ratio. Video embeds collapse before load.
-
-**Model:** `aspect-ratio` prefers a width/height relationship while sizing. If content’s intrinsic size conflicts, the box may grow — ratio is a preference, not a hard crop unless overflow clips or the replaced element is constrained (`object-fit`).
-
-**Rule:** Set `aspect-ratio` + one size dimension (`width: 100%`). For media, pair with `object-fit` and `overflow: hidden` when you need a hard crop. Use `width`/`height` HTML attributes too to limit CLS.
-
 ```css
-.video { aspect-ratio: 16 / 9; width: 100%; }
-.square { aspect-ratio: 1; width: 200px; }
-
+.video {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+}
 .thumb {
   aspect-ratio: 1;
   width: 100%;
@@ -751,197 +1203,220 @@ text-align: left → text-align: start
 .thumb img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: cover; /* hard crop; contain = letterbox */
 }
 ```
 
-| Ratio | Use |
-|-------|-----|
-| 1 / 1 | avatars, icons |
-| 16 / 9 | video, heroes |
-| 4 / 3 | classic photo |
-| 21 / 9 | ultra-wide banners |
-
-### Self-check
-
-1. Why might a box ignore `aspect-ratio: 16/9`?
-2. Difference between `object-fit: cover` and `contain`?
-3. How does `aspect-ratio` help CLS vs padding-bottom hacks?
+Ratio is a **preference** — oversized intrinsic content can still grow the box unless you clip/`object-fit`. Pair with HTML `width`/`height` attributes to limit CLS. Common ratios: `1`, `16/9`, `4/3`, `21/9`.
 
 ---
 
 # Colors and Custom Properties
 
-**Confusion:** Hex themes are hard to derive. Dark mode duplicates everything. Sass variables can’t theme at runtime.
+CSS variables are **inherited runtime values**. They theme without a rebuild; Sass variables cannot.
 
-**Model:** CSS custom properties are **inherited runtime values** on the cascade. Color spaces like **OKLCH** are perceptually uniform — better for generating ramps. `color-scheme` tells the browser to restyle native UI; `accent-color` tints form controls.
-
-**Rule:** Tokens on `:root` / `[data-theme]`. Prefer OKLCH/HSL channels for derived colors. Use `@property` when you need typed/animatable variables. Remember: an **invalid** custom property at computed-value time invalidates the declaration (fallback matters).
+### Token setup (decision pattern)
 
 ```css
 :root {
-  --color-primary: oklch(60% 0.14 250);
-  --bg: white;
-  --text: black;
-  color-scheme: light dark;
+  color-scheme: light dark; /* native controls/scrollbars adapt */
   accent-color: var(--color-primary);
+
+  --hue: 250;
+  --color-primary: oklch(60% 0.14 var(--hue));
+  --color-primary-hover: color-mix(in oklch, var(--color-primary), black 15%);
+  --bg: oklch(99% 0 0);
+  --text: oklch(25% 0 0);
+}
+
+[data-theme='dark'] {
+  --bg: oklch(20% 0.02 260);
+  --text: oklch(95% 0 0);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #1a1a2e; --text: #e0e0e0; }
+  :root:not([data-theme='light']) {
+    --bg: oklch(20% 0.02 260);
+    --text: oklch(95% 0 0);
+  }
 }
 
 .card {
   background: var(--bg);
   color: var(--text);
-  margin: var(--margin, 20px); /* fallback */
+  border-color: var(--border, oklch(80% 0 0)); /* fallback */
 }
+```
 
-/* Typed custom property — animatable, validated */
+OKLCH (or HSL channels) makes hover/ramps predictable; hex ramps are harder to derive by hand.
+
+### Invalidation gotcha
+
+If `--pad` computes to something invalid for `padding`, the whole `padding` declaration is dropped at computed-value time — **not** silently ignored as “bad var only.” Always ship fallbacks for critical tokens: `padding: var(--pad, 16px)`.
+
+```css
 @property --hue {
-  syntax: "<number>";
+  syntax: '<number>';
   inherits: true;
   initial-value: 200;
-}
+} /* typed + animatable custom props */
 ```
-
-**Invalidation gotcha:** if `--pad` is set to `red` somehow, `padding: var(--pad)` fails and falls through — use fallbacks for defensive tokens.
 
 ```javascript
-document.documentElement.style.setProperty('--color-primary', '#ff0000');
+document.documentElement.style.setProperty('--hue', '20');
+document.documentElement.dataset.theme = 'dark';
 ```
 
-| CSS variables | Sass variables |
-|---------------|----------------|
-| Runtime, inherited | Compile-time |
-| Themable via JS/DOM | Not runtime |
-| No build step | Need build |
+|                    | CSS variables | Sass variables |
+| ------------------ | ------------- | -------------- |
+| When               | Runtime       | Compile time   |
+| Theme via JS/DOM   | Yes           | No             |
+| Inherited/cascaded | Yes           | No             |
 
 ### Self-check
 
-1. Why can CSS variables theme dark mode without a rebuild?
-2. What does `color-scheme: light dark` change besides your tokens?
-3. What happens if `var(--x)` is invalid and has no fallback?
+1. Why do CSS variables enable dark mode without rebuilding CSS?
+2. What happens when `var(--x)` is invalid and has no fallback?
 
 ---
 
 # Transitions and Animations
 
-**Confusion:** Animating `width` feels janky. `display: none` won’t fade. `will-change` everywhere “for performance.”
-
-**Model:** **Composite** properties (`transform`, `opacity`) can animate on the GPU without layout. Layout properties trigger **reflow**. Discrete properties (`display`) need special handling (`@starting-style` / `allow-discrete` — see Modern). Respect `prefers-reduced-motion`.
-
-**Rule:** Animate `transform`/`opacity`. Transition specific properties, not `all`. Apply `will-change` temporarily, never globally.
+Animate **composite** properties (`transform`, `opacity`) to avoid layout thrash. Prefer specific transition lists over `all`. `will-change` only temporarily.
 
 ```css
 .button {
-  transition: background 0.3s ease, transform 0.2s ease;
+  transition:
+    background 0.3s ease,
+    transform 0.2s ease;
 }
-.button:hover { transform: scale(1.05); }
+.button:hover {
+  transform: scale(1.05);
+}
 
-/* Can’t transition: display, font-family, position, content */
+/* Not smoothly transitionable: display, font-family, position, content */
 .modal {
   visibility: hidden;
   opacity: 0;
-  transition: opacity 0.3s, visibility 0.3s;
+  transition:
+    opacity 0.3s,
+    visibility 0.3s;
 }
-.modal.active { visibility: visible; opacity: 1; }
+.modal.active {
+  visibility: visible;
+  opacity: 1;
+}
+/* Entering from display:none → see Modern (@starting-style) */
 
 @keyframes slideIn {
-  from { transform: translateX(-100%); opacity: 0; }
-  to   { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
-.element {
+.el {
   animation: slideIn 0.5s ease-out forwards;
 }
 
-/* CHEAP: transform, opacity */
-/* EXPENSIVE: width, height, top, left, margin */
-
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
 }
 ```
 
-### Self-check
-
-1. Why is `transform` preferred over animating `top`?
-2. What’s wrong with `* { will-change: transform; }`?
-3. How do you honor reduced motion?
+| Cheap                  | Expensive                                  |
+| ---------------------- | ------------------------------------------ |
+| `transform`, `opacity` | `width`, `height`, `top`, `left`, `margin` |
 
 ---
 
 # Pseudo-classes and Pseudo-elements
 
-**Confusion:** `:focus` outlines on every mouse click. `:nth-child` vs `:nth-of-type`. Pseudo-elements used where extra DOM would be clearer.
+**Pseudo-class** = state/structural match. **Pseudo-element** = fragment (`::before`, `::selection`).
 
-**Model:** **Pseudo-classes** select elements in a state (`:hover`, `:invalid`). **Pseudo-elements** style generated fragments (`::before`, `::selection`). Structural pseudos count tree position.
-
-**Rule:** Style keyboard focus with `:focus-visible`. Prefer real DOM for complex UI chrome; use `::before/::after` for light decoration.
+### Essentials
 
 ```css
-button:focus { outline: none; }
-button:focus-visible { outline: 2px solid #4A90D9; outline-offset: 2px; }
-
-input:required:invalid { }
-li:nth-child(3n+1) { }
-li:nth-child(-n+5) { }              /* first 5 */
-li:nth-child(n+3):nth-child(-n+7) { } /* 3–7 */
-
-.quote::before { content: "\201C"; }
-::selection { background: #4A90D9; color: white; }
-li::marker { color: #4A90D9; }
-
-input[type="checkbox"] {
-  appearance: none;
-  width: 20px; height: 20px;
-  border: 2px solid #ccc;
+/* Keyboard-only focus ring */
+button:focus {
+  outline: none;
 }
-input[type="checkbox"]:checked::after { content: "✓"; }
+button:focus-visible {
+  outline: 2px solid #4a90d9;
+  outline-offset: 2px;
+}
+
+:is(h1, h2, h3) {
+}
+:where(.prose) a {
+} /* 0 specificity base */
+.card:has(img) {
+}
+:not(.active) {
+}
+
+li:nth-child(3n + 1) {
+}
+li:nth-child(-n + 5) {
+} /* first 5 */
+li:nth-of-type(odd) {
+} /* among same tag — differs from :nth-child on mixed children */
+
+input:required:invalid {
+}
+input:checked {
+}
+input:placeholder-shown {
+}
+
+.quote::before {
+  content: '\201C';
+} /* needs content */
+::selection {
+  background: #4a90d9;
+  color: white;
+}
+li::marker {
+  color: #4a90d9;
+}
 ```
 
-### Self-check
-
-1. `:focus` vs `:focus-visible` — what changes for mouse users?
-2. Does `::before` work without `content`?
-3. `:nth-child(odd)` vs `:nth-of-type(odd)` on mixed tags?
+Prefer real DOM for complex chrome; `::before`/`::after` for light decoration. `::before` does nothing useful without `content`.
 
 ---
 
 # Typography
 
-**Confusion:** FOIT/FOUT flashes. Unitless vs unit `line-height` inheritance bugs. Multi-line clamp feels hacky. Font swap shifts layout.
-
-**Model:** Text layout is font metrics + line boxes + wrapping rules. `font-display` trades blank text vs fallback flash vs layout shift. Unitless `line-height` inherits as a **multiplier**; unit values inherit as absolute computed lengths.
-
-**Rule:** `font-display: swap` for body branding; `optional` when CLS matters more than custom face. Unitless line-height. Set explicit `size-adjust` / matching fallback metrics when polishing.
-
 ```css
 body {
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
-  line-height: 1.5; /* unitless — inherits multiplier */
+  line-height: 1.5; /* unitless — inherits as multiplier */
 }
-h1 { line-height: 1.2; }
+h1 {
+  line-height: 1.2;
+}
 
 @font-face {
   font-family: 'MyFont';
   src: url('/fonts/myfont.woff2') format('woff2');
   font-weight: 400;
-  font-display: swap; /* FOUT: fallback first, then swap */
+  font-display: swap; /* FOUT; use optional when CLS > branding */
 }
-
-/* optional — almost no late swap; best CLS, may never show custom font */
 ```
 
-```
-auto     — browser decides
-block    — invisible up to ~3s (FOIT)
-swap     — fallback immediately (FOUT) ← body default choice
-optional — use custom only if already available
-```
+| `font-display` | Behavior                             |
+| -------------- | ------------------------------------ |
+| `swap`         | Fallback immediately, swap in (FOUT) |
+| `optional`     | Almost no late swap — best CLS       |
+| `block`        | Invisible up to ~3s (FOIT)           |
 
 ```css
 .truncate {
@@ -955,36 +1430,37 @@ optional — use custom only if already available
   -webkit-line-clamp: 3;
   overflow: hidden;
 }
-.long-text { overflow-wrap: break-word; hyphens: auto; }
-.nums { font-variant-numeric: tabular-nums; }
+.long-text {
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+.nums {
+  font-variant-numeric: tabular-nums;
+}
 ```
 
-### Self-check
-
-1. Why prefer unitless `line-height`?
-2. `swap` vs `optional` — which prioritizes CLS?
-3. What three properties make single-line ellipsis work?
+Unitless `line-height` inherits as a multiplier; `line-height: 24px` inherits `24px` absolutely — usually not what you want on nested sizes.
 
 ---
 
 # Overflow and Scrolling
 
-**Confusion:** `overflow: hidden` creates a scroll container and breaks sticky. Scroll chaining pulls the page behind a modal. Custom scrollbars differ by engine.
-
-**Model:** Overflow decides clipping and whether a box is a **scroll container**. `clip` clips without becoming a scroll container. Scroll snap / overscroll control user scroll UX. Sticky is sensitive to overflow ancestors (see Positioning).
-
-**Rule:** Modals: `overscroll-behavior: contain` on the scrollable panel. Prefer `clip` when you only need clip, not scroll. Always pair smooth scroll with reduced-motion.
+| Value     | Clips?             | Scroll container?                                              |
+| --------- | ------------------ | -------------------------------------------------------------- |
+| `visible` | No                 | No                                                             |
+| `hidden`  | Yes                | Yes (JS can still scroll)                                      |
+| `clip`    | Yes                | **No** — prefer when you only need clip (friendlier to sticky) |
+| `auto`    | If needed          | Yes                                                            |
+| `scroll`  | Always scrollports | Yes                                                            |
 
 ```css
-overflow: visible; /* default */
-overflow: hidden;  /* clip + scroll container (JS can still scroll) */
-overflow: clip;    /* clip only — no scroll container */
-overflow: auto;    /* scrollbar if needed */
-overflow: scroll;  /* always scrollports */
-
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+}
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 .carousel {
@@ -993,12 +1469,14 @@ html { scroll-behavior: smooth; }
   scroll-snap-type: x mandatory;
 }
 .carousel-item {
-  scroll-snap-align: start;
   flex: 0 0 100%;
+  scroll-snap-align: start;
 }
 
-.modal-body { overflow-y: auto; overscroll-behavior: contain; }
-body { overscroll-behavior-y: none; } /* reduce pull-to-refresh */
+.modal-body {
+  overflow-y: auto;
+  overscroll-behavior: contain; /* stop scroll chaining to the page */
+}
 
 .container {
   scrollbar-width: thin;
@@ -1006,218 +1484,216 @@ body { overscroll-behavior-y: none; } /* reduce pull-to-refresh */
 }
 ```
 
-### Self-check
-
-1. `hidden` vs `clip` — which can break `position: sticky` and why?
-2. What does `overscroll-behavior: contain` prevent?
-3. Why disable smooth scrolling under reduced motion?
+`overflow: hidden` on an ancestor is a classic sticky breaker — see Positioning.
 
 ---
 
 # CSS Functions
 
-**Confusion:** `calc` breaks without spaces. `clamp` vs media queries. Safe areas ignored on notched phones.
-
-**Model:** Functions compute values at used-value time from other values (`calc`, `min`/`max`/`clamp`), tokens (`var`), environment (`env`), or colors (`color-mix`).
-
-**Rule:** Spaces around `+`/`-` in `calc`. Prefer `clamp` for fluid type/space. Always fallback `env(safe-area-inset-*)`.
-
 ```css
-width: calc(100% - 250px);          /* spaces required around - */
+width: calc(100% - 250px); /* spaces required around + and - */
 width: min(90vw, 1200px);
 width: max(300px, 50vw);
-width: clamp(300px, 90vw, 1200px);  /* min, preferred, max */
+width: clamp(300px, 90vw, 1200px); /* min, preferred, max */
 padding: env(safe-area-inset-top, 20px);
 
 background: color-mix(in oklch, var(--primary), black 20%);
 background: linear-gradient(135deg, #f00, #00f);
-filter: blur(4px) brightness(1.2);
+filter: blur(4px);
 backdrop-filter: blur(10px);
 
 .gradient-text {
   background: linear-gradient(135deg, #667eea, #764ba2);
   background-clip: text;
-  -webkit-background-clip: text;
   color: transparent;
 }
 ```
 
-### Self-check
-
-1. Why is `calc(100%-250px)` invalid?
-2. Express “never wider than 1200, never narrower than 300, else 90vw.”
-3. What is `env(safe-area-inset-bottom)` for?
+Fluid type/width with `clamp` also lives under Responsive. Safe-area `env()` matters for notched phones / home indicators.
 
 ---
 
 # Modern CSS Features
 
-**Confusion:** Specificity wars with third-party CSS. Nesting without a preprocessor. Entering from `display: none` won’t animate. View transitions feel magical/opaque.
-
-**Model:** Modern CSS adds **cascade control** (`@layer`, `@scope`), **author ergonomics** (nesting), and **lifecycle hooks** (`@starting-style`, view transitions). Feature-detect with `@supports`.
-
-**Rule:** Put resets/vendor in layers. Scope component CSS when global leakage hurts. Use `@starting-style` for entry animations from `display: none`. Progressive-enhance view transitions.
+Index of newer tools — deepen individually when a role demands them.
 
 ```css
 @layer reset, base, components, utilities;
 
 .card {
   padding: 16px;
-  .title { font-size: 1.5rem; }
-  &:hover { box-shadow: 0 2px 8px rgb(0 0 0 / 10%); }
-  @media (max-width: 768px) { padding: 8px; }
+  .title {
+    font-size: 1.5rem;
+  }
+  &:hover {
+    box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
+  }
+  @media (width <= 768px) {
+    padding: 8px;
+  }
 }
 
 @scope (.card) to (.card-footer) {
-  h2 { font-size: 1.5rem; }
+  h2 {
+    font-size: 1.5rem;
+  }
 }
 
+/* Animate in from display: none */
 .modal {
   display: none;
   opacity: 0;
-  transition: opacity 0.3s, display 0.3s allow-discrete;
-  @starting-style { opacity: 0; }
+  transition:
+    opacity 0.3s,
+    display 0.3s allow-discrete;
+  @starting-style {
+    opacity: 0;
+  }
 }
-.modal.open { display: block; opacity: 1; }
+.modal.open {
+  display: block;
+  opacity: 1;
+}
 
 @supports selector(:has(*)) {
-  .card:has(img) { padding: 0; }
+  .card:has(img) {
+    padding: 0;
+  }
 }
 
-::view-transition-old(root) { animation: fade-out 0.3s; }
-::view-transition-new(root) { animation: fade-in 0.3s; }
+::view-transition-old(root) {
+  animation: fade-out 0.3s;
+}
+::view-transition-new(root) {
+  animation: fade-in 0.3s;
+}
 ```
 
-### Self-check
-
-1. Do unlayered styles beat layered styles regardless of specificity?
-2. What problem does `@starting-style` solve?
-3. When would you reach for `@scope` instead of a CSS Module?
+Unlayered styles beat layered styles. `@scope` limits leak without Modules; Modules still win for build-time isolation in component apps.
 
 ---
 
 # Performance
 
-**Confusion:** “CSS isn’t a performance issue.” Animating layout. Reading `offsetHeight` in a write loop. Giant stylesheets for below-the-fold content.
-
-**Model:** Cost ladder: **Reflow (layout) → Repaint → Composite**. Reading geometry forces layout; writing then reading in a loop = **layout thrashing**. Containment tells the browser what won’t affect the outside.
-
-**Rule:** Animate transform/opacity. Batch DOM reads then writes. Use `content-visibility: auto` for long pages. Inline critical CSS for first paint.
+Cost ladder for style changes:
 
 ```
-Reflow:  width, height, margin, padding, font-size, offsetHeight reads
-Repaint: color, background, visibility, box-shadow
+Reflow (layout) → Repaint → Composite
+Most expensive ←————————————→ Least
+
+Reflow:  width, height, margin, padding, font-size, reading offsetWidth
+Repaint: color, background, box-shadow, visibility
 Composite: transform, opacity
 ```
 
+### Layout thrashing
+
 ```javascript
-// BAD — thrash
+// BAD — read/write alternation forces layout each iteration
 for (const el of elements) {
   el.style.width = container.offsetWidth + 'px';
 }
-// GOOD — read once, write many
+
+// GOOD — batch reads, then writes
 const width = container.offsetWidth;
 for (const el of elements) {
   el.style.width = width + 'px';
 }
+
+// ALSO GOOD — double rAF or ResizeObserver when measuring after paint
 ```
 
+### Containment — when and when not
+
 ```css
-.card { contain: content; }
+.card {
+  contain: content; /* layout + paint isolation — good for repeated cards */
+}
 .section {
   content-visibility: auto;
-  contain-intrinsic-size: 0 500px;
+  contain-intrinsic-size: 0 500px; /* placeholder size avoids scrollbar jump */
 }
 ```
 
+**When not to:** don’t `contain: strict` on a box whose children must influence outside layout (e.g. expanding accordion measured by a parent). `content-visibility: auto` shines on long feeds; it’s wasted on above-the-fold hero content.
+
+### Checklist
+
 ```
-Animate transform/opacity only
-contain: content for card islands
-content-visibility: auto for long feeds
-will-change sparingly and temporarily
-Batch reads, then writes
-Inline critical CSS
+Animate transform/opacity
+Batch DOM reads, then writes
+contain: content on card-like islands
+content-visibility: auto on long below-the-fold lists
+will-change only moments before animation — never globally
+Inline critical CSS for first paint
 ```
 
 ### Self-check
 
-1. Rank `opacity`, `left`, `background-color` from cheapest to costliest to animate.
+1. Rank animating `opacity`, `left`, `background-color` from cheapest to costliest.
 2. What is layout thrashing?
-3. What does `content-visibility: auto` skip?
+3. When is `content-visibility: auto` the wrong tool?
 
 ---
 
 # Architecture
 
-**Confusion:** “Just use Tailwind” vs “BEM forever.” Specificity wars with third-party CSS. Tokens live in three places.
+Architecture is **ownership + collision control + change velocity** — not “which tool won Twitter.”
 
-**Model:** Architecture is **ownership + collision control + change velocity**. Naming (BEM), isolation (Modules/Shadow), utilities (Tailwind), and layers (`@layer`) are tools for those goals — not religions.
+### Ownership matrix
 
-**Rule:** Pick a default for the team, define escape hatches, put design tokens in CSS variables, and use `@layer` at integration boundaries. Explain tradeoffs in interviews, don’t recite a winner.
+| Approach        | Collision control                | Velocity            | Failure mode                                |
+| --------------- | -------------------------------- | ------------------- | ------------------------------------------- |
+| **BEM**         | Naming convention in global CSS  | Medium              | Verbose; discipline-dependent               |
+| **CSS Modules** | Compile-time local scope         | Medium-high         | Sharing tokens/cross-cuts needs convention  |
+| **Tailwind**    | Utilities + lint                 | Very high           | Design soup without constraints; HTML noise |
+| **CSS-in-JS**   | Colocated with component         | High for dynamic    | Runtime/tooling cost; duplication risk      |
+| **`@layer`**    | Cascade priority between systems | Integrator          | Mis-ordered layers recreate !important wars |
+| **Shadow DOM**  | True encapsulation               | Low-medium for apps | Theming/piercing; heavier for whole apps    |
 
-### BEM (collision control via naming)
+### Practical defaults (interview framing)
 
-```css
-.card { }
-.card__title { }
-.card--featured { }
-```
-
-Every selector stays ~0-1-0. Good for large multi-team plain CSS.
-
-### Isolation approaches
-
-```html
-<!-- Tailwind — utility velocity; watch bundle + design consistency -->
-<article class="p-4 border rounded-lg">...</article>
-```
-
-```css
-/* CSS Modules — local by default, no runtime */
-.card { padding: 16px; }
-```
-
-```js
-import styles from './Card.module.css';
-```
-
-### Ownership with layers
+- **Component React/Vue app:** CSS Modules or Tailwind + shared CSS variable tokens.
+- **Multi-team legacy global CSS:** BEM (or similar) + `@layer` at vendor boundaries.
+- **Design system / widgets:** Shadow DOM or Modules + tokens; document escape hatches.
+- **Never:** three token sources (Figma hex, Sass `$`, random CSS vars) without a single pipeline.
 
 ```css
 @layer reset, tokens, vendor, components, utilities, overrides;
+/* third-party → vendor; app → components; utilities last among layered */
 ```
 
-Put third-party in `vendor`. Keep app components in `components`. Utilities last among layered; unlayered only for true escapes.
-
-### Token rule
-
-One source of truth: CSS variables (optionally generated from JSON). Components consume tokens, not raw hex — themes and JS become trivial.
-
-### Interview framing
-
+```css
+.card {
+}
+.card__title {
+}
+.card--featured {
+} /* BEM: keep selectors ~0-1-0 */
 ```
-BEM           — explicit ownership in global CSS, long-lived large teams
-Modules       — component apps, compile-time isolation, low drama
-Tailwind      — speed + constraints; needs lint/design discipline
-CSS-in-JS     — dynamic theming; cost is runtime/tooling complexity
-@layer        — integrate systems without !important
-Shadow DOM    — true style encapsulation (design systems / widgets)
-```
+
+**Token rule:** components consume `var(--color-primary)`, not raw hex. Themes and JS become one `setProperty` / `data-theme` away.
+
+In interviews: state the **problem** (ownership, collisions, speed), pick a default, name the **escape hatch** (`@layer`, unlayered override, `revert-layer`). Don’t recite a winner.
 
 ### Self-check
 
-1. What problem does BEM actually solve (be precise)?
-2. When do CSS Modules beat BEM for the same React app?
-3. Where should third-party CSS sit in an `@layer` stack and why?
+1. What precise problem does BEM solve?
+2. When do Modules beat BEM in the same React codebase?
+3. Where does third-party CSS sit in an `@layer` stack and why?
 
 ---
 
 ## Quick revisit map
 
-| Before an interview | Re-say the model in one sentence |
-|---------------------|----------------------------------|
-| Layout bugs | Formatting context + containing block |
-| Won’t shrink / truncate | Intrinsic min-size / `min-width: 0` |
-| Override fights | Cascade: layer → specificity → order + keywords |
-| Janky UI | Reflow vs composite |
-| Structure debate | Ownership + collision + tokens |
+| Situation               | Reach for                                              |
+| ----------------------- | ------------------------------------------------------ |
+| Layout bugs             | Formatting context + containing block                  |
+| Won’t shrink / truncate | Intrinsic min size / `min-width: 0` / `minmax(0, 1fr)` |
+| Override fights         | Layer → specificity → order + keywords                 |
+| Flex weirdness          | Axes + basis → shrink → grow                           |
+| Grid weirdness          | Lines/tracks + explicit vs implicit + fill/fit         |
+| Janky UI                | Reflow vs composite                                    |
+| Structure debate        | Ownership + collision + tokens                         |
+
+|
